@@ -129,4 +129,4 @@ These scripts:
 ---
 
 ## Acknowledgments
-This pipeline was developed for processing genetic data for the PanGenEU project. Special thanks to the Michigan Imputation Server for providing the tools and scripts used in data preparation.
+This pipeline was developed for processing genetic data of PanGenEU for the Master Thesis project. Special thanks to the Michigan Imputation Server for providing the tools and scripts used in data preparation.
