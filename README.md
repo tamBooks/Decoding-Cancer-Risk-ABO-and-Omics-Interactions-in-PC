@@ -12,8 +12,10 @@ This repository contains scripts and workflows to process genetic data from raw 
     - [GTC to VCF Conversion](#gtc-to-vcf-conversion)
     - [VCF Merging and Liftover](#vcf-merging-and-liftover)
     - [Sample Comparison and Filtering](#sample-comparison-and-filtering)
+    - [HLA and ABO Analysis](#hla-and-abo-analysis)
     - [VCF Tools and Pre-Imputation Filtering](#vcf-tools-and-pre-imputation-filtering)
-    - [Imputation Data Preparation](#imputation-data-preparation)  
+    - [Imputation Data Preparation](#imputation-data-preparation)
+    - [Post-Imputation Analysis](#post-imputation-analysis)
 3. [Requirements](#requirements)  
 4. [Usage](#usage)  
 
@@ -60,7 +62,20 @@ These scripts convert the GTC files into VCF files.
 
 ---
 
-### 5. VCF Tools and Pre-Imputation Filtering
+### 5. HLA and ABO Analysis
+#### HLA and ABO Extraction:
+- **`splitting_chr_variants_hla_abo.sh`**: Extracts the **HLA region** from Chromosome 6 and the **ABO region** from Chromosome 9. The HLA region is reimputed using the Michigan Imputation Server.
+
+#### Quality Check and Filtering:
+- **`quality_check_HLA_b4_imp.py`**: Performs a quality check on the extracted HLA region, filtering out variants with an R-squared value below 0.7.  
+- **`imputed_hla_filteration.py`**: After HLA imputation, filters out variants with an R-squared value below 0.3.  
+
+#### ABO Inference:
+- **`ABO_predict_final.py`**: Infers blood group types based on the ABO region of the sample.
+
+---
+
+### 6. VCF Tools and Pre-Imputation Filtering
 - **`vcftools_script.sh`**: Filters VCF files using the following criteria:
   - Excludes samples and SNPs with high missing rates.
   - Generates new VCF files with a call rate of at least 80%.
@@ -68,7 +83,7 @@ These scripts convert the GTC files into VCF files.
 
 ---
 
-### 6. Imputation Data Preparation
+### 7. Imputation Data Preparation
 Scripts for preparing the filtered VCF files for submission to the Michigan Imputation Server.  
 - **`dataprep2024.sh`**: Processes data for **PanGenEU 2024** (Reference 37).  
 - **`dataprep2019.sh`**: Processes data for **PanGenEU 2019** (Reference 37).  
@@ -78,15 +93,24 @@ These scripts:
 
 ---
 
+### 8. Post-Imputation Analysis
+#### Principal Component Analysis:
+- **`pc_extraction.sh`**: Extracts dosage data for ethnicity-related SNPs from imputed VCF files.  
+- **`psa_cal.R`**: Calculates the Principal Component Analysis (PCA), extracting the first five components and saving them separately.
+
+#### Dataframe Merging:
+- **`datatable_merge.R`**: Combines the PCA components and other variables into a single, large dataframe for analysis.
+
+---
+
 ## Requirements
 - **Tools**:  
-  - `bcftools`
-  - `bcftools` + `idat2gtc`
-  - `bcftools` + `gtc2vcf`
+  - `bcftools`  
   - `vcftools`  
   - `plink`  
-  - Python with required libraries for `vcf_liftover.py`  
-  - Michigan Imputation Server's Perl scripts and files 
+  - Python with required libraries for `vcf_liftover.py`, `quality_check_HLA_b4_imp.py`, and `imputed_hla_filteration.py`  
+  - Michigan Imputation Server's Perl scripts  
+  - R with required libraries for PCA and data merging scripts  
 
 - **Input Files**:  
   - Raw IDAT files  
@@ -114,16 +138,29 @@ These scripts:
    python3 vcf_liftover.py
    ```
 
-4. **Filter and Prepare VCF for Imputation**:
+4. **Extract HLA and ABO Regions**:
+   ```bash
+   ./splitting_chr_variants_hla_abo.sh
+   python3 quality_check_HLA_b4_imp.py
+   python3 imputed_hla_filteration.py
+   ```
+
+5. **Filter and Prepare VCF for Imputation**:
    ```bash
    ./vcftools_script.sh
    ./dataprep2024.sh
    ./dataprep2019.sh
    ```
 
-5. **Duplicate Sample Analysis**:
+6. **Run Principal Component Analysis**:
    ```bash
-   ./extract_pairs_and_compare.sh
+   ./pc_extraction.sh
+   Rscript psa_cal.R
+   ```
+
+7. **Combine Components and Variables**:
+   ```bash
+   Rscript datatable_merge.R
    ```
 
 ---
