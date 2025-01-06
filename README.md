@@ -70,7 +70,7 @@ These scripts convert the GTC files into VCF files.
 
 ### 6. Imputation Data Preparation
 Scripts for preparing the filtered VCF files for submission to the Michigan Imputation Server.  
-- **`dataprep2024.sh`**: Processes data for **PanGenEU 2024** (Reference 38).  
+- **`dataprep2024.sh`**: Processes data for **PanGenEU 2024** (Reference 37).  
 - **`dataprep2019.sh`**: Processes data for **PanGenEU 2019** (Reference 37).  
 These scripts:
   1. Use the provided Perl script from the server to prepare the data.
