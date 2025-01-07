@@ -184,3 +184,11 @@ These scripts:
 
 ## Acknowledgments   
 This pipeline was developed for processing genetic data of PanGenEU for the Master Thesis project. Special thanks to the Michigan Imputation Server for providing the tools and scripts used in data preparation.
+
+---
+## References  
+Some of the codes used in this pipeline are adapted or based on tools from external repositories:  
+
+- **IDAT to GTC Conversion**: The `convert_idat_to_gtc.sh` and `convert_idat_to_gtc19.sh` scripts are based on tools from [gtc2vcf GitHub Repository](https://github.com/freeseek/gtc2vcf.git).  
+- **GTC to VCF Conversion**: The `convert_gtc_to_vcf.sh` and `convert_gtc_to_vcf19.sh` scripts are based on tools from [gtc2vcf GitHub Repository](https://github.com/freeseek/gtc2vcf.git).  
+
