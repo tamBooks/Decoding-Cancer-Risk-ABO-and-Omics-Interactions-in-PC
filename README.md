@@ -18,8 +18,9 @@ This repository contains scripts and workflows to process genetic data from raw 
     - [Post-Imputation Analysis](#post-imputation-analysis)  
     - [Association and Meta-Analysis](#association-and-meta-analysis)  
 3. [Requirements](#requirements)  
-4. [Usage](#usage)  
-
+4. [Usage](#usage)
+5. [References](#references)
+   
 ---
 
 ## Overview  
