@@ -95,7 +95,7 @@ Scripts for preparing the filtered VCF files for submission to the Michigan Impu
 - **`dataprep2024.sh`**: Processes data for **PanGenEU 2024** (Reference 37).  
 - **`dataprep2019.sh`**: Processes data for **PanGenEU 2019** (Reference 37).  
 These scripts:  
-  1. Use the provided Perl script from the server to prepare the data.  
+  1. Use the provided Perl script from the server to prepare the data [HRC or 1000G Imputation preparation and checking](https://www.chg.ox.ac.uk/~wrayner/tools/).  
   2. Run the generated script for final processing.  
 
 ---
