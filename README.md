@@ -122,10 +122,11 @@ These scripts:
   - `bcftools` + `idat2gtc`
   - `bcftools` + `gtc2vcf`
   - `vcftools`  
-  - `plink`  
+  - `plink`
+  - `plink2`  
   - Python with required libraries for `vcf_liftover.py`, `quality_check_HLA_b4_imp.py`, and `imputed_hla_filteration.py`  
   - Michigan Imputation Server's Perl scripts  
-  - R with required libraries for PCA, meta-analysis, and data merging scripts  
+  - R with required libraries for PCA, meta-analysis, and data merging and visualization scripts  
 
 - **Input Files**:  
   - Raw IDAT files  
