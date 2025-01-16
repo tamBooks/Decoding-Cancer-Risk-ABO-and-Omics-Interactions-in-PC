@@ -7,5 +7,4 @@ zcat chr6.info.gz | awk '{FS="\t"} {if ($2>=27970031 && $2<=33965553) {print $0}
 
 # ABO extraction
 zcat chr9.dose.vcf.gz | grep "^#"  > abo_region.vcf
-zcat chr9.dose.vcf.gz | awk '{FS="\t"} {if ($2 >= 133250000 && $2 <= 133276000) {print $0}}' >> abo_region.vcf
-#awk '{FS="\t"} {if ($2>=136115788 && $2<=136160617) {print $0}}' >> abo_region.vcf
+zcat chr9.dose.vcf.gz | awk '{FS="\t"} {if ($2 >= 136115788 && $2 <= 136160617) {print $0}}' >> abo_region.vcf
