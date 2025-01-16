@@ -101,7 +101,8 @@ These scripts:
 - **`psa_cal.R`**: Calculates the Principal Component Analysis (PCA), extracting the first five components and saving them separately.  
 
 #### Dataframe Merging:  
-- **`datatable_merge.R`**: Combines the PCA components and other variables into a single, large dataframe for downstream analysis.  
+- **`abo_txt_prep.py `**: Modification and combination of the ABO blood group datasets.
+- **`datatable_merge.R`**: Combines the PCA components and other variables into a single, large dataframe for downstream analysis.
 
 ---
 
@@ -173,7 +174,8 @@ These scripts:
 
 7. **Combine Components and Variables**:  
    ```bash  
-   Rscript datatable_merge.R  
+   Rscript datatable_merge.R
+   python3 abo_txt_prep.py  
    ```  
 
 8. **Perform Association and Meta-Analysis**:  
