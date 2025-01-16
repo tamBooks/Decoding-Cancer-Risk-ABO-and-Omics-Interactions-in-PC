@@ -98,7 +98,8 @@ These scripts:
 ### 8. Post-Imputation Analysis  
 #### Principal Component Analysis:  
 - **`pc_extraction.sh`**: Extracts dosage data for ethnicity-related SNPs from imputed VCF files.  
-- **`psa_cal.R`**: Calculates the Principal Component Analysis (PCA), extracting the first five components and saving them separately.  
+- **`psa_cal.R`**: Calculates the Principal Component Analysis (PCA), extracting the first five components and saving them separately.
+- **`ibd.sh`**`: Identifies samples with a genetic relatedness coefficient higher than 0.9.  
 
 #### Dataframe Merging:  
 - **`abo_txt_prep.py `**: Modification and combination of the ABO blood group datasets.
@@ -169,7 +170,9 @@ These scripts:
 6. **Run Principal Component Analysis**:  
    ```bash  
    ./pc_extraction.sh  
-   Rscript psa_cal.R  
+   Rscript psa_cal.R
+   ./ibd.sh
+   Rscript psa_cal.R
    ```  
 
 7. **Combine Components and Variables**:  
