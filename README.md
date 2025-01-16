@@ -30,6 +30,11 @@ This pipeline processes genetic data using various tools and scripts for data pr
 
 The scripts are organized into key steps, which are explained in detail below.  
 
+## Pipeline Overview
+
+Below is a visual representation of the pipeline from [IDAT to GTC Conversion](#idat-to-gtc-conversion) until [Imputation Data Preparation](#imputation-data-preparation):
+
+![Pipeline Overview](![workflow](https://github.com/user-attachments/assets/f7c0992a-7ed0-4704-81e4-1b83c0f78f16))
 ---
 
 ## Scripts and Workflow  
