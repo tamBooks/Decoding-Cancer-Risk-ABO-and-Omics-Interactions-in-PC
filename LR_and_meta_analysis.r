@@ -4,6 +4,7 @@
 #install.packagecs("caret")
 #install.packages("forcats")
 #install.packages("webshot")
+#install.packages("car")
 
 #library(devtools)
 #install_version("gtsummary", version = "1.5.0")
@@ -11,6 +12,7 @@
 
 # 1. Load the necessary libraries:
 library(caret)
+library("car")
 library(dplyr)
 library(readxl)
 library(tidyr)
@@ -28,6 +30,7 @@ library(stringr)
 library('survival')
 library('compareGroups')
 library(flextable)
+library(ggpubr)
 
 # 2. Load the data:
 load("~/Downloads/tfm/whole_dataframe_pc.RData")
@@ -40,7 +43,7 @@ hla_onco = read.csv("~/Downloads/tfm/oncoarray_hla_2.txt", sep='\t')
 hla_onco_ids = read.table("~/Downloads/tfm/ID_oncoarray.txt")
 
 microbiome = read.csv("~/Downloads/tfm/gsa2019_Oral_Fecal.csv", sep=";")
-microbiome_gut <- microbiome[grep('ST', microbiome$MMPCID),]
+microbiome_gut <- microbiome[grep('ST', microbiome$MMPCID),] # stool  for gut microbiome
 microbiome_gut_whole <- merge(gsa2019_data, microbiome_gut , by="Name")
 
 # 2.5. Modify the column Name
@@ -100,24 +103,23 @@ filtered_data_pdac <- filtered_data_pdac %>%
   filter(sex != 2) # %>%
 
 # Relevel for default
-filtered_data_pdac$casecontrol <- relevel(filtered_data_pdac$casecontrol, ref = '0')
-filtered_data_pdac$casecontrol<- droplevels(filtered_data_pdac$casecontrol)
-filtered_data_pdac$TYPE <- relevel(filtered_data_pdac$TYPE, ref = "OO")
-#filtered_data_pdac$arraytype <- relevel(filtered_data_pdac$arraytype, ref = "ONCO")
-filtered_data_pdac$Non_O <- relevel(filtered_data_pdac$Non_O, ref = "O")
-filtered_data_pdac$BGroup <- droplevels(filtered_data_pdac$BGroup)
-filtered_data_pdac$BGroup <- relevel(filtered_data_pdac$BGroup, ref = "O")
-filtered_data_pdac$Agrouping <- droplevels(filtered_data_pdac$Agrouping)
-filtered_data_pdac$Agrouping <- relevel(filtered_data_pdac$Agrouping, ref = "O")
-filtered_data_pdac$EuroRegion <- relevel(filtered_data_pdac$EuroRegion, ref = "South")
+filtered_data_pdac$casecontrol <- relevel(filtered_data_pdac$casecontrol, ref = '0') # relevel to set the controls as reference
+filtered_data_pdac$casecontrol<- droplevels(filtered_data_pdac$casecontrol) # drop "empty" levels
+filtered_data_pdac$TYPE <- relevel(filtered_data_pdac$TYPE, ref = "OO") # relevel to set the O allele as reference
+filtered_data_pdac$Non_O <- relevel(filtered_data_pdac$Non_O, ref = "O")# relevel to set the O group as reference
+filtered_data_pdac$BGroup <- droplevels(filtered_data_pdac$BGroup) # drop "empty" levels
+filtered_data_pdac$BGroup <- relevel(filtered_data_pdac$BGroup, ref = "O") # relevel to set the O group as reference
+filtered_data_pdac$Agrouping <- droplevels(filtered_data_pdac$Agrouping) # drop "empty" levels
+filtered_data_pdac$Agrouping <- relevel(filtered_data_pdac$Agrouping, ref = "O") # relevel to set the O group as reference
+filtered_data_pdac$EuroRegion <- relevel(filtered_data_pdac$EuroRegion, ref = "South") # relevel to set the South as reference
 
 # Perform the left join to merge with `filtered_data_pdac`, keeping "Name" and high frequency alleles
 combined_df <- left_join(filtered_data_pdac, hla_com_filtered, by = "Name")
-
 hla_micro_abo <- left_join(combined_df,microbiome_gut,by = "Name")
 
 #write.table(combined_df, file=paste0('~/Downloads/whole_dataset_epi_abo_hla.txt'), col.names = T, quote=FALSE, row.names= F, sep='\t')
 
+# Table to visually see the percentages of the ABO blood groups in the dataframe
 percentage_df <- filtered_data_pdac %>%
   count(TYPE) %>%
   transmute(TYPE, percentage = n / sum(n) * 100)
@@ -128,7 +130,7 @@ bloodtype_table |>
   as_gt() |> 
   gt::gtsave(filename = "~/Downloads/tfm/pooled/blood_table.pdf")
 
-# table to summarize everything
+# Table to summarize the dataframe
 hla_micro_abo %>% 
   select(arraytype ,casecontrol, agec, sex, BGroup,q.0,q.1) %>% 
   tbl_summary(by = casecontrol, 
@@ -136,12 +138,7 @@ hla_micro_abo %>%
               percent = "row"
   )
 
-# compute a time-to-overall death variable
-Clinical = hla_micro_abo[,c('agec','sex','BGroup','arraytype','casecontrol')]
-tab <- descrTable(arraytype ~ . , data = Clinical[,c('agec','sex','BGroup','casecontrol')], hide.no="no")
-tab
-
-
+# Table to summarize the dataframe
 tables <- compareGroups(casecontrol ~ arraytype + agec+ sex+ BGroup+q.0+q.1,data = hla_micro_abo)
 all_tables <- createTable(tables,show.p.overall = FALSE)
 table_19 <- createTable(update(tables, subset=arraytype=='GSA19'), show.p.overall = FALSE)
@@ -153,22 +150,22 @@ export2word(table_19, file = "~/Downloads/tfm/gsa19/table.docx")
 export2word(table_24, file = "~/Downloads/tfm/gsa24/table.docx")
 export2word(table_onco, file = "~/Downloads/tfm/onco/table.docx")
 
-# Extract the row descriptions (row names) from the 'descr' slot
+## Extract the row descriptions (row names) from the 'descr' slot
 row_names_19 <- rownames(table_19$descr)
 row_names_24 <- rownames(table_24$descr)
 row_names_onco <- rownames(table_onco$descr)
 row_names_all <- rownames(all_tables$descr)
 
-# Find the common row names
+## Find the common row names
 common_rows <- Reduce(intersect, list(row_names_19, row_names_24, row_names_onco, row_names_all))
 
-# Subset each table to include only the common rows
+## Subset each table to include only the common rows
 table_19_aligned <- table_19$descr[common_rows, , drop = FALSE]
 table_24_aligned <- table_24$descr[common_rows, , drop = FALSE]
 table_onco_aligned <- table_onco$descr[common_rows, , drop = FALSE]
 all_tables_aligned <- all_tables$descr[common_rows, , drop = FALSE]
 
-# Combine the tables
+## Combine the tables
 combined_table <- cbind(
   "GSA19" = table_19_aligned,
   "GSA24" = table_24_aligned,
@@ -176,13 +173,13 @@ combined_table <- cbind(
   "Pooled" = all_tables_aligned
 )
 
-# Convert `combined_table` to a data frame
+## Convert `combined_table` to a data frame
 combined_table_df <- as.data.frame(combined_table)
 
-# Add row names as the first column
+## Add row names as the first column
 combined_table_df <- cbind(Characteristic = rownames(combined_table_df), combined_table_df)
 
-# Fix column names for uniqueness
+## Fix column names for uniqueness
 colnames(combined_table_df) <- c(
   "Characteristic", 
   "GSA19_Control", "GSA19_Case",
@@ -191,7 +188,7 @@ colnames(combined_table_df) <- c(
   "Pooled_Control", "Pooled_Case"
 )
 
-# Create the `gt` table
+## Create the `gt` table
 gt_table <- gt(combined_table_df) %>%
   # Add the main headers
   tab_spanner(
@@ -234,54 +231,55 @@ gt_table <- gt(combined_table_df) %>%
 # Print the table
 print(gt_table)
 
-pdf('/local/tsaid/trabajo/logistic/EuroRegionPlot.pdf')
+# Plot Graph to visualize the European region of the dataframe
+#pdf('/local/tsaid/trabajo/logistic/EuroRegionPlot.pdf')
 # Create a scatter plot
-ggplot(filtered_data_pdac, aes(x = PC1, y = PC2, color = as.factor(EuroRegion))) +
-  geom_point(size = 0.5, alpha = 0.4) +
-  labs(
-    title = "PC1 vs PC2 by EuroRegion",
-    x = "Principal Component 1 (PC1)",
-    y = "Principal Component 2 (PC2)",
-    color = "EuroRegion"
-  ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-    axis.title = element_text(size = 12),
-    legend.position = "right"
-  )
+#ggplot(filtered_data_pdac, aes(x = PC1, y = PC2, color = as.factor(EuroRegion))) +
+#  geom_point(size = 0.5, alpha = 0.4) +
+#  labs(
+#    title = "PC1 vs PC2 by EuroRegion",
+#    x = "Principal Component 1 (PC1)",
+#    y = "Principal Component 2 (PC2)",
+#    color = "EuroRegion"
+#  ) +
+#  theme_minimal() +
+#  theme(
+#    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+#    axis.title = element_text(size = 12),
+#    legend.position = "right"
+#  )
 
-ggplot(filtered_data_pdac, aes(x = PC1, y = PC3, color = as.factor(EuroRegion))) +
-  geom_point(size = 0.5, alpha = 0.4) +
-  labs(
-    title = "PC1 vs PC3 by EuroRegion",
-    x = "Principal Component 1 (PC1)",
-    y = "Principal Component 3 (PC3)",
-    color = "EuroRegion"
-  ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-    axis.title = element_text(size = 12),
-    legend.position = "right"
-  )
+#ggplot(filtered_data_pdac, aes(x = PC1, y = PC3, color = as.factor(EuroRegion))) +
+#  geom_point(size = 0.5, alpha = 0.4) +
+#  labs(
+#    title = "PC1 vs PC3 by EuroRegion",
+#    x = "Principal Component 1 (PC1)",
+#    y = "Principal Component 3 (PC3)",
+#    color = "EuroRegion"
+#  ) +
+#  theme_minimal() +
+#  theme(
+#    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+#    axis.title = element_text(size = 12),
+#    legend.position = "right"
+#  )
 
-ggplot(filtered_data_pdac, aes(x = PC2, y = PC3, color = as.factor(EuroRegion))) +
-  geom_point(size = 0.5, alpha = 0.4) +
-  labs(
-    title = "PC2 vs PC3 by EuroRegion",
-    x = "Principal Component 2 (PC2)",
-    y = "Principal Component 3 (PC3)",
-    color = "EuroRegion"
-  ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-    axis.title = element_text(size = 12),
-    legend.position = "right"
-  )
+#ggplot(filtered_data_pdac, aes(x = PC2, y = PC3, color = as.factor(EuroRegion))) +
+#  geom_point(size = 0.5, alpha = 0.4) +
+#  labs(
+#    title = "PC2 vs PC3 by EuroRegion",
+#    x = "Principal Component 2 (PC2)",
+#    y = "Principal Component 3 (PC3)",
+#    color = "EuroRegion"
+#  ) +
+#  theme_minimal() +
+#  theme(
+#    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+#    axis.title = element_text(size = 12),
+#    legend.position = "right"
+#  )
 
-dev.off()
+#dev.off()
 
 # 5. Univariate Logistic Regression:
 ## To assess the crude association between ABO blood group variants and PDAC
@@ -309,24 +307,15 @@ summary(univariate_model3)
 univariate_or3 <- exp(cbind(OR = coef(univariate_model3), confint(univariate_model3)))
 univariate_or3
 
-### Comparison with compressed Types
-univariate_model4 <- glm(casecontrol ~ Agrouping, data = filtered_data_pdac, family=binomial(logit))
-summary(univariate_model4)
-
-# Calculate Odds Ratios (ORs) and 95% Confidence Intervals (CIs)
-univariate_or4 <- exp(cbind(OR = coef(univariate_model4), confint(univariate_model4)))
-univariate_or4
-
 # Table combining the univarient models togther
 table1 <-  tbl_regression(univariate_model1, exponentiate = TRUE)
 table2 <-  tbl_regression(univariate_model3, exponentiate = TRUE)
 table3 <-  tbl_regression(univariate_model2, exponentiate = TRUE)
-table4 <-  tbl_regression(univariate_model4, exponentiate = TRUE)
 
 tbl_merge1 <-
   tbl_merge(
-    tbls = list(table1, table2, table3, table4),
-    tab_spanner = c("**Allele**", "**Blood Group**", "**Non-O**", "**A-Alleles Grouped**")
+    tbls = list(table1, table2, table3),
+    tab_spanner = c("**Allele**", "**Blood Group**", "**Non-O**")
   )
 tbl_merge1 |> 
   as_gt() |> 
@@ -368,18 +357,6 @@ forest_plot3 <-
 forest_plot3 |> 
   gt::gtsave(filename = "~/Downloads/tfm/pooled/uni_forest3.pdf")
 
-forest_plot4 <- 
-  table4 %>%
-  modify_column_merge(
-    pattern = "{estimate} (95% CI {ci}; {p.value})",
-    rows = !is.na(estimate)
-  ) %>%
-  add_forest() %>%
-  gt::tab_header(title = gt::md("**Forest Plot of Model 4**"))
-
-forest_plot4 |> 
-  gt::gtsave(filename = "~/Downloads/tfm/pooled/uni_forest4.pdf")
-
 ### 6. Multivariate Logistic Regression:
 #To adjust for potential confounders like agec, sex, and smoking status, you can run a multivariate logistic regression.
 ## Pooled Analysis
@@ -406,13 +383,6 @@ summary(multivariate_model3)
 multivariate_or3 <- exp(cbind(OR = coef(multivariate_model3), confint(multivariate_model3)))
 multivariate_or3
 
-multivariate_model4 <- glm(casecontrol ~ Agrouping + agec + sex + PC1 + PC2 + PC3 + PC4 + PC5, 
-                           data = filtered_data_pdac, binomial(logit))
-summary(multivariate_model3)
-# Calculate Odds Ratios (ORs) and 95% Confidence Intervals (CIs)
-multivariate_or4 <- exp(cbind(OR = coef(multivariate_model4), confint(multivariate_model4)))
-multivariate_or4
-
 ## Plot
 # Define each regression table with specific data subsets and labels
 table1 <- tbl_regression(multivariate_model1, exponentiate = TRUE)# %>%
@@ -421,8 +391,6 @@ table2 <- tbl_regression(multivariate_model3, exponentiate = TRUE) #%>%
 #modify_header(label ~ "**Non-O**")   # Label for Non-O model
 table3 <- tbl_regression(multivariate_model2, exponentiate = TRUE) #%>%
 #modify_header(label ~ "**Blood Group**")  # Label for Blood Group model
-table4 <- tbl_regression(multivariate_model4, exponentiate = TRUE) #%>%
-#modify_header(label ~ "**A-Allele Grouping**")  # Label for Blood Group model
 
 table1 |> 
   as_gt() |> 
@@ -435,10 +403,6 @@ table2 |>
 table3 |> 
   as_gt() |> 
   gt::gtsave(filename = "~/Downloads/tfm/pooled/no_euro_multivarient_table3.pdf")
-
-table4 |> 
-  as_gt() |> 
-  gt::gtsave(filename = "~/Downloads/tfm/pooled/no_euro_multivarient_table4.pdf")
 
 forest_plot1 <- 
   table1 %>%
@@ -476,35 +440,23 @@ forest_plot3 <-
 forest_plot3 |> 
   gt::gtsave(filename = "~/Downloads/tfm/pooled/no_euro_multi_forest3.pdf")
 
-forest_plot4 <- 
-  table4 %>%
-  modify_column_merge(
-    pattern = "{estimate}; p-value: {p.value}",
-    rows = !is.na(estimate)
-  ) %>%
-  add_forest() %>%
-  gt::tab_header(title = gt::md("**Forest Plot of Model Multi 4**"))
-
-forest_plot4 |> 
-  gt::gtsave(filename = "~/Downloads/tfm/pooled/no_euro_multi_forest4.pdf")
-
 # Merge the tables
 # To hide repeated demographic labels, we can leverage gtsummary's modify_* functions
 tbl_merge2 <- tbl_merge(
-  tbls = list(table1, table2, table3, table4),
-  tab_spanner = c("Allele", "Non-O", "Blood Group", "A-Grouping") 
+  tbls = list(table1, table2, table3),
+  tab_spanner = c("Allele", "Non-O", "Blood Group") 
 )%>%
   modify_spanning_header(everything() ~ NA_character_) %>%  # Remove existing spanning headers if needed
   modify_column_unhide(columns = c("label", "estimate_1", "ci_1", 
-                                   "estimate_2", "ci_2", "estimate_3", "ci_3", 
-                                   "estimate_4", "ci_4"))
+                                   "estimate_2", "ci_2", "estimate_3", "ci_3"))
 # Convert to gt format if needed
 gt_table <- as_gt(tbl_merge2)
 
 # Save or display the merged table
 gtsave(gt_table, filename = "~/Downloads/tfm/pooled/no_euro_multivarient_tables.html")
 
-### GSA24
+
+# GSA24
 filtered_data_pdac <- subset(gsa2024_data, casecontrol %in% c(0, 1))
 filtered_data_pancreatitis <- subset(gsa2024_data, casecontrol %in% c(0, 2))
 
@@ -525,7 +477,6 @@ bloodtype_table <-filtered_data_pdac %>% select(TYPE,BGroup,Agrouping,Non_O) %>%
 bloodtype_table |>
   as_gt() |> 
   gt::gtsave(filename = "~/Downloads/tfm/gsa24/blood_table.pdf")
-
 
 multivariate_model_gsa24_type <- glm(casecontrol ~ TYPE + agec + sex + PC1 +PC2, 
                            data = filtered_data_pdac, binomial(logit))
@@ -553,15 +504,6 @@ multivariate_or3_gsa24_group <- exp(cbind(OR = coef(multivariate_model3_gsa24_gr
                               confint(multivariate_model3_gsa24_group)))
 multivariate_or3_gsa24_group
 
-multivariate_model4_gsa24_group <- glm(casecontrol ~ Agrouping + agec + sex  + PC1 +PC2, 
-                                       data = filtered_data_pdac, binomial(logit))
-summary(multivariate_model4_gsa24_group)
-
-# Calculate Odds Ratios (ORs) and 95% Confidence Intervals (CIs)
-multivariate_or4_gsa24_group <- exp(cbind(OR = coef(multivariate_model4_gsa24_group), 
-                                          confint(multivariate_model4_gsa24_group)))
-multivariate_or4_gsa24_group
-
 ## Plot
 # Define each regression table with specific data subsets and labels
 table1 <- tbl_regression(multivariate_model_gsa24_type, exponentiate = TRUE)# %>%
@@ -570,8 +512,6 @@ table2 <- tbl_regression(multivariate_model3_gsa24_group, exponentiate = TRUE) #
 #modify_header(label ~ "**Non-O**")   # Label for Non-O model
 table3 <- tbl_regression(multivariate_model2_gsa24_non, exponentiate = TRUE) #%>%
 #modify_header(label ~ "**Blood Group**")  # Label for Blood Group model
-table4 <- tbl_regression(multivariate_model4_gsa24_group, exponentiate = TRUE) #%>%
-#modify_header(label ~ "**A-Allele Grouping**")  # Label for Blood Group model
 
 table1 |> 
   as_gt() |> 
@@ -584,10 +524,6 @@ table2 |>
 table3 |> 
   as_gt() |> 
   gt::gtsave(filename = "~/Downloads/tfm/gsa24/gsa24_multivarient_table3.pdf")
-
-table4 |> 
-  as_gt() |> 
-  gt::gtsave(filename = "~/Downloads/tfm/gsa24/gsa24_multivarient_table4.pdf")
 
 forest_plot1 <- 
   table1 %>%
@@ -625,28 +561,15 @@ forest_plot3 <-
 forest_plot3 |> 
   gt::gtsave(filename = "~/Downloads/tfm/gsa24/gsa24_multi_forest3.pdf")
 
-forest_plot4 <- 
-  table4 %>%
-  modify_column_merge(
-    pattern = "{estimate};  p-value:{p.value}",
-    rows = !is.na(estimate)
-  ) %>%
-  add_forest() %>%
-  gt::tab_header(title = gt::md("**Forest Plot of Model Multi 4**"))
-
-forest_plot4 |> 
-  gt::gtsave(filename = "~/Downloads/tfm/gsa24/gsa24_multi_forest4.pdf")
-
 # Merge the tables
 # To hide repeated demographic labels, we can leverage gtsummary's modify_* functions
 tbl_merge2 <- tbl_merge(
-  tbls = list(table1, table2, table3, table4),
-  tab_spanner = c("Allele", "Non-O", "Blood Group", "A-Grouping") 
+  tbls = list(table1, table2, table3),
+  tab_spanner = c("Allele", "Non-O", "Blood Group") 
 )%>%
   modify_spanning_header(everything() ~ NA_character_) %>%  # Remove existing spanning headers if needed
   modify_column_unhide(columns = c("label", "estimate_1", "ci_1", 
-                                   "estimate_2", "ci_2", "estimate_3", "ci_3", 
-                                   "estimate_4", "ci_4"))
+                                   "estimate_2", "ci_2", "estimate_3", "ci_3"))
 
 # Convert to gt format if needed
 gt_table <- as_gt(tbl_merge2)
@@ -703,15 +626,6 @@ multivariate_or3_gsa19_group <- exp(cbind(OR = coef(multivariate_model3_gsa19_gr
                               confint(multivariate_model3_gsa19_group)))
 multivariate_or3_gsa19_group
 
-multivariate_model4_gsa19_group <- glm(casecontrol ~ Agrouping + agec + sex+ PC1 +PC2 +PC3 + PC5+PC5, 
-                                       data = filtered_data_pdac, binomial(logit))
-summary(multivariate_model4_gsa19_group)
-
-# Calculate Odds Ratios (ORs) and 95% Confidence Intervals (CIs)
-multivariate_or4_gsa19_group <- exp(cbind(OR = coef(multivariate_model4_gsa19_group), 
-                                          confint(multivariate_model4_gsa19_group)))
-multivariate_or4_gsa19_group
-
 ## Plot
 # Define each regression table with specific data subsets and labels
 table1 <- tbl_regression(multivariate_model_gsa19_type, exponentiate = TRUE)# %>%
@@ -720,8 +634,6 @@ table2 <- tbl_regression(multivariate_model3_gsa19_group, exponentiate = TRUE) #
 #modify_header(label ~ "**Non-O**")   # Label for Non-O model
 table3 <- tbl_regression(multivariate_model2_gsa19_non, exponentiate = TRUE) #%>%
 #modify_header(label ~ "**Blood Group**")  # Label for Blood Group model
-table4 <- tbl_regression(multivariate_model4_gsa19_group, exponentiate = TRUE) #%>%
-#modify_header(label ~ "**A-Allele Grouping**")  # Label for Blood Group model
 
 table1 |> 
   as_gt() |> 
@@ -734,10 +646,6 @@ table2 |>
 table3 |> 
   as_gt() |> 
   gt::gtsave(filename = "~/Downloads/tfm/gsa19/gsa19_multivarient_table3.pdf")
-
-table4 |> 
-  as_gt() |> 
-  gt::gtsave(filename = "~/Downloads/tfm/gsa19/gsa19_multivarient_table4.pdf")
 
 forest_plot1 <- 
   table1 %>%
@@ -775,28 +683,15 @@ forest_plot3 <-
 forest_plot3 |> 
   gt::gtsave(filename = "~/Downloads/tfm/gsa19/gsa19_multi_forest3.pdf")
 
-forest_plot4 <- 
-  table4 %>%
-  modify_column_merge(
-    pattern = "{estimate};  p-value:{p.value}",
-    rows = !is.na(estimate)
-  ) %>%
-  add_forest() %>%
-  gt::tab_header(title = gt::md("**Forest Plot of Model Multi 4**"))
-
-forest_plot4 |> 
-  gt::gtsave(filename = "~/Downloads/tfm/gsa19/gsa19_multi_forest4.pdf")
-
 # Merge the tables
 # To hide repeated demographic labels, we can leverage gtsummary's modify_* functions
 tbl_merge2 <- tbl_merge(
-  tbls = list(table1, table2, table3, table4),
-  tab_spanner = c("Allele", "Non-O", "Blood Group", "A-Grouping") 
+  tbls = list(table1, table2, table3),
+  tab_spanner = c("Allele", "Non-O", "Blood Group") 
 )%>%
   modify_spanning_header(everything() ~ NA_character_) %>%  # Remove existing spanning headers if needed
   modify_column_unhide(columns = c("label", "estimate_1", "ci_1", 
-                                   "estimate_2", "ci_2", "estimate_3", "ci_3", 
-                                   "estimate_4", "ci_4"))
+                                   "estimate_2", "ci_2", "estimate_3", "ci_3"))
 
 # Convert to gt format if needed
 gt_table <- as_gt(tbl_merge2)
@@ -854,15 +749,6 @@ multivariate_or3_onco_group <- exp(cbind(OR = coef(multivariate_model3_onco_grou
                               confint(multivariate_model3_onco_group)))
 multivariate_or3_onco_group
 
-multivariate_model4_onco_group <- glm(casecontrol ~ Agrouping + agec + sex + PC1+PC2, 
-                                      data = filtered_data_pdac, binomial(logit))
-summary(multivariate_model4_onco_group)
-
-# Calculate Odds Ratios (ORs) and 95% Confidence Intervals (CIs)
-multivariate_or4_onco_group <- exp(cbind(OR = coef(multivariate_model4_onco_group), 
-                                         confint(multivariate_model4_onco_group)))
-multivariate_or4_onco_group
-
 ## Plot
 # Define each regression table with specific data subsets and labels
 table1 <- tbl_regression(multivariate_model_onco_type, exponentiate = TRUE)# %>%
@@ -871,8 +757,6 @@ table2 <- tbl_regression(multivariate_model3_onco_group, exponentiate = TRUE) #%
 #modify_header(label ~ "**Non-O**")   # Label for Non-O model
 table3 <- tbl_regression(multivariate_model2_onco_non, exponentiate = TRUE) #%>%
 #modify_header(label ~ "**Blood Group**")  # Label for Blood Group model
-table4 <- tbl_regression(multivariate_model4_onco_group, exponentiate = TRUE) #%>%
-#modify_header(label ~ "**A-Allele Grouping**")  # Label for Blood Group model
 
 table1 |> 
   as_gt() |> 
@@ -885,10 +769,6 @@ table2 |>
 table3 |> 
   as_gt() |> 
   gt::gtsave(filename = "~/Downloads/tfm/onco/onco_multivarient_table3.pdf")
-
-table4 |> 
-  as_gt() |> 
-  gt::gtsave(filename = "~/Downloads/tfm/onco/onco_multivarient_table4.pdf")
 
 forest_plot1 <- 
   table1 %>%
@@ -926,28 +806,15 @@ forest_plot3 <-
 forest_plot3 |> 
   gt::gtsave(filename = "~/Downloads/tfm/onco/onco_multi_forest3.pdf")
 
-forest_plot4 <- 
-  table4 %>%
-  modify_column_merge(
-    pattern = "{estimate};  p-value:{p.value}",
-    rows = !is.na(estimate)
-  ) %>%
-  add_forest() %>%
-  gt::tab_header(title = gt::md("**Forest Plot of Model Multi 4**"))
-
-forest_plot4 |> 
-  gt::gtsave(filename = "~/Downloads/tfm/onco/onco_multi_forest4.pdf")
-
 # Merge the tables
 # To hide repeated demographic labels, we can leverage gtsummary's modify_* functions
 tbl_merge2 <- tbl_merge(
-  tbls = list(table1, table2, table3, table4),
-  tab_spanner = c("Allele", "Non-O", "Blood Group", "A-Grouping") 
+  tbls = list(table1, table2, table3),
+  tab_spanner = c("Allele", "Non-O", "Blood Group") 
 )%>%
   modify_spanning_header(everything() ~ NA_character_) %>%  # Remove existing spanning headers if needed
   modify_column_unhide(columns = c("label", "estimate_1", "ci_1", 
-                                   "estimate_2", "ci_2", "estimate_3", "ci_3", 
-                                   "estimate_4", "ci_4"))
+                                   "estimate_2", "ci_2", "estimate_3", "ci_3"))
 
 # Convert to gt format if needed
 gt_table <- as_gt(tbl_merge2)
@@ -956,11 +823,10 @@ gt_table <- as_gt(tbl_merge2)
 gtsave(gt_table, filename = "~/Downloads/tfm/onco/onco_multivarient_tables.html")
 
 
-## VIF 
-#install.packages("car")
-library("car")
+# Variance Inflation Factor (VIF), measures the severity of multicollinarirty in regression analysis. 
+## set the dataframe into another for modifications not affecting the main dataframe 
 data_vif <- filtered_data_pdac
-
+## Set varibales into numerical variables 
 data_vif$casecontrol<- as.numeric(filtered_data_pdac$casecontrol)
 data_vif$PC1<- as.numeric(filtered_data_pdac$PC1)
 data_vif$PC2<- as.numeric(filtered_data_pdac$PC2)
@@ -970,7 +836,7 @@ data_vif$PC5<- as.numeric(filtered_data_pdac$PC5)
 data_vif$TYPE <- as.numeric(filtered_data_pdac$TYPE)
 data_vif$agec <- as.numeric(filtered_data_pdac$agec)
 data_vif$sex <- as.numeric(filtered_data_pdac$agec)
-
+## Logestic model 
 lm_model <- lm(casecontrol ~ TYPE + agec + sex  + PC1 + PC2 + PC3 + PC4 + PC5, 
                data = data_vif)
 # Calculate VIF
@@ -978,7 +844,8 @@ vif_values <- vif(lm_model)
 # Print the VIF values
 print(vif_values)
 
-# Extract logOR and SE for each population
+# META-ANALYSIS
+## Extract logOR and SE for each population
 logOR_gsa24 <- coef(multivariate_model2_gsa24_non)["Non_ONonO"]
 SE_gsa24 <- sqrt(vcov(multivariate_model2_gsa24_non)["Non_ONonO", "Non_ONonO"])
 
@@ -988,14 +855,14 @@ SE_gsa19 <- sqrt(vcov(multivariate_model2_gsa19_non)["Non_ONonO", "Non_ONonO"])
 logOR_onco <- coef(multivariate_model2_onco_non)["Non_ONonO"]
 SE_onco <- sqrt(vcov(multivariate_model2_onco_non)["Non_ONonO", "Non_ONonO"])
 
-# Prepare the data for meta-analysis
+## Prepare the data for meta-analysis
 res <- data.frame(
   study = c("GSA24", "GSA19", "Onco"),
   logOR = c(logOR_gsa24, logOR_gsa19, logOR_onco),
   SE = c(SE_gsa24, SE_gsa19, SE_onco)
 )
 
-# Run the meta-analysis
+## Run the meta-analysis
 meta_analysis_non_o <- rma.uni(
   yi = logOR, 
   sei = SE, 
@@ -1017,63 +884,8 @@ forest(
   main = "Meta-Analysis: Non-O vs O"
 )
 
-# with hla
-# Assuming df is your data frame, with the outcome variable named "outcome"
-# The HLA allele columns start from column 7 to 107
-
-# Initialize lists to store results
-#univariate_results <- list()
-#univariate_or_results <- list()
-#hla_col <-names(combined_df[7:108])
-# Loop over columns 7 to 107
-#for (i in 7:82) {
- # hla_col <- names(combined_df)[i]  # Get the column name
-  
-  # Fit a logistic regression model with `TYPE` as a covariate
-  #model <- glm(casecontrol ~ combined_df[[hla_col]] + TYPE, data = combined_df, family = binomial(logit))
-  
-  # Store the model summary or coefficients
-  #univariate_results[[hla_col]] <- summary(model)
-  
-  # Calculate OR and confidence intervals for the model
-  #or_ci <- exp(cbind(OR = coef(model), confint(model)))  # Odds Ratios with confidence intervals
-  
-  # Store the OR and CI in the list
-  #univariate_or_results[[hla_col]] <- or_ci
-#}
-
-# Print or inspect results for each HLA column
-#univariate_results
-#univariate_or_results
-
-#multivariate_results <- list()
-#multivariate_or_results <- list()
-
-#for (i in 7:108) {
-#  hla_col <- names(combined_df)[i]  # Get the column name
-  
-  # Fit a logistic regression model with `TYPE` as a covariate
-  #model <- glm(casecontrol ~ combined_df[[hla_col]] + TYPE + agec + sex + EuroRegion, data = combined_df, family = binomial(logit))
-  
-  # Store the model summary or coefficients
-  #multivariate_results[[hla_col]] <- summary(model)
-  
-  # Calculate OR and confidence intervals for the model
-  #or_ci <- exp(cbind(OR = coef(model), confint(model)))  # Odds Ratios with confidence intervals
-  
-  # Store the OR and CI in the list
-  #multivariate_or_results[[hla_col]] <- or_ci
-#}
-
-# Print or inspect results for each HLA column
-#multivariate_results
-#multivariate_or_results
-
-#for (i in 16:dim(combined_df)[2]) {
-#  combined_df[,i] <- as.factor(combined_df[,i])
-#}
-
-# Create an empty dataframe to store results
+# HLA Allele Interaction with Non - O Blood Group
+## Create an empty dataframe to store results
 interaction_results_df <- data.frame()
 
 # Loop through HLA columns
@@ -1133,9 +945,12 @@ print(interaction_results_df)
 hla_adjusted_pvalues <- p.adjust(interaction_results_df$p.value, method = 'BH')
 interaction_results_df_adjusted <- data.frame(interaction_results_df,hla_adjusted_pvalues)
 sorted_df <- interaction_results_df_adjusted[order(interaction_results_df_adjusted$p.value), ]
+sorted_df %>%
+  filter(OR > 1, p.value < 0.05)
 
-##############################
-# Ensure results storage
+####
+# HLA Allele Interaction with ABO Blood Group
+## Ensure results storage
 interaction_results_df <- data.frame()
 
 # Loop through HLA columns
@@ -1203,8 +1018,11 @@ print(interaction_results_df)
 hla_adjusted_pvalues <- p.adjust(interaction_results_df$p.value, method = 'BH')
 interaction_results_df_adjusted <- data.frame(interaction_results_df,hla_adjusted_pvalues)
 sorted_df <- interaction_results_df_adjusted[order(interaction_results_df_adjusted$p.value), ]
+sorted_df %>%
+  filter(OR > 1, p.value < 0.05)
 
-########################################################
+#####
+# HLA Allele varibles compressed from 0s, 1s, and 2s to 0s and 1s  
 # Specify the range of columns to check
 start_col <- 16
 end_col <- 108
@@ -1217,6 +1035,8 @@ transformed_combined_df[, start_col:end_col] <- lapply(
   function(column) ifelse(column == 2, 1, column)
 )
 
+
+# HLA Allele Interaction with ABO Blood Group but with the new HLA varibles of 0s and 1s  
 # Ensure results storage
 interaction_results_df <- data.frame()
 
@@ -1287,7 +1107,9 @@ interaction_results_df_adjusted <- data.frame(interaction_results_df,hla_adjuste
 sorted_df <- interaction_results_df_adjusted[order(interaction_results_df_adjusted$p.value), ]
 sorted_df %>%
   filter(OR > 1, p.value < 0.05)
+
 ##############################
+# HLA Allele Interaction with Non-O Blood Group but with the new HLA varibles of 0s and 1s 
 # Create an empty dataframe to store results
 interaction_results_df <- data.frame()
 
@@ -1350,9 +1172,10 @@ interaction_results_df_adjusted <- data.frame(interaction_results_df,hla_adjuste
 sorted_df <- interaction_results_df_adjusted[order(interaction_results_df_adjusted$p.value), ]
 sorted_df %>%
   filter(OR > 1, p.value < 0.05)
+
 ####################################
 
-## MICROBIOME
+# MICROBIOME dataset 
 filtered_data_pdac <- subset(microbiome_gut_whole, casecontrol %in% c(0, 1))
 filtered_data_pdac$casecontrol <- droplevels(filtered_data_pdac$casecontrol)
 filtered_data_pdac <- drop_na(filtered_data_pdac)
@@ -1403,7 +1226,7 @@ ggplot(filtered_data_pdac, aes(x = Non_O, y = q.1, fill = Non_O)) +
   labs(title = "Q1 Distribution by Non-O and O", x = "Group", y = "Q1") +
   theme_minimal()
 
-##### NonO and Microbiome Q0
+# NonO and Microbiome Q0 Interaction
 # Define the formula
 formula <- as.formula(paste(
   "casecontrol ~ Non_O + q.0 + (Non_O * q.0) + agec + sex + PC1 + PC2 + PC3 + PC4 + PC5"
@@ -1450,7 +1273,7 @@ interaction_results_df$micro_adjusted_pvalues <- micro_adjusted_pvalues
 # Display the results
 print(interaction_results_df)
 
-##### ABO and Microbiome Q0
+## ABO and Microbiome Q0 Interaction
 # Define the formula
 formula <- as.formula(paste(
   "casecontrol ~ BGroup + q.0 + (BGroup * q.0) + agec + sex + PC1 + PC2 + PC3 + PC4 + PC5"
@@ -1504,7 +1327,7 @@ interaction_results_df$adjusted_pvalue <- p.adjust(interaction_results_df$p.valu
 # Display the results
 print(interaction_results_df)
 
-##### NonO and Microbiome Q1
+## NonO and Microbiome Q1 Interaction
 # Define the formula
 formula <- as.formula(paste(
   "casecontrol ~ Non_O + q.1 + (Non_O * q.1) + agec + sex + PC1 + PC2 + PC3 + PC4 + PC5"
@@ -1541,7 +1364,6 @@ interaction_results_df <- rbind(
     stringsAsFactors = FALSE
   )
 )
-
 # Adjust the p-value (unnecessary for a single p-value, but kept for consistency)
 micro_adjusted_pvalues <- p.adjust(p_value, method = 'BH')
 
@@ -1551,7 +1373,7 @@ interaction_results_df$micro_adjusted_pvalues <- micro_adjusted_pvalues
 # Display the results
 print(interaction_results_df)
 
-##### ABO and Microbiome Q1
+## ABO and Microbiome Q1 Interaction
 # Define the formula
 formula <- as.formula(paste(
   "casecontrol ~ BGroup + q.1 + (BGroup * q.1) + agec + sex + PC1 + PC2 + PC3 + PC4 + PC5"
@@ -1606,10 +1428,6 @@ interaction_results_df$adjusted_pvalue <- p.adjust(interaction_results_df$p.valu
 print(interaction_results_df)
 
 ## Stratified analysis with continuous values
-# Stratify the data into Non-O and O groups
-#non_o_data <- filtered_data_pdac %>% filter(Non_O == "NonO")
-#o_data <- filtered_data_pdac %>% filter(Non_O == "O")
-
 # Fit models for Non-O and O
 model_q0 <- glm(log(q.0) ~ casecontrol+ Non_O + agec + sex, 
                    data = filtered_data_pdac)
@@ -1717,10 +1535,7 @@ gtsave(t_test_results_gt, filename = "~/Downloads/tfm/micro/t_test_results.pdf")
 # Filter the data to include only controls (casecontrol == 0)
 control_data <- filtered_data_pdac %>% filter(casecontrol == 0)
 
-# Stratify the controls into Non-O and O groups
-#non_o_controls <- control_data %>% filter(Non_O == "NonO")
-#o_controls <- control_data %>% filter(Non_O == "O")
-
+# Stratify the controls into Non-O and O group
 # Fit models for Non-O and O controls
 control_model_0 <- glm(log(q.0) ~ Non_O + agec + sex , 
                            data = control_data)
@@ -1876,7 +1691,6 @@ ggplot(all_data, aes(x = Group, y = Q, fill = Group)) +
   scale_fill_manual(values = c("Non-O" = "#1f77b4", "O" = "#ff7f0e"))
 ggsave("~/Downloads/tfm/micro/q_comparison_barplot.png", width = 8, height = 5)
 
-
 summary_data <- all_data %>%
   group_by(Variable, Group) %>%
   summarise(
@@ -1908,12 +1722,7 @@ bar_data <- data.frame(
   )
 )
 
-library(ggpubr)
-
 # Barplot
-# Load ggpubr library
-library(ggpubr)
-
 # Create the bar plot
 p <- ggbarplot(
   bar_data,
@@ -1942,87 +1751,5 @@ p <- ggbarplot(
 
 # Display the plot
 print(p)
-
 ggsave("~/Downloads/tfm/micro/q_comparison_barplot_test.png", width = 8, height = 5)
 
-## ALBERTOS CODE:
-for (i in 7:82) {
-  hla_col <- names(combined_df)[i]  # Get the column name
-  
-  formula <- as.formula(paste(
-      "Class1_LOSS ~", allele_valid, "* G12V + Subtype...Moffitt + TP53 + Lymphnode_stage_collapsed + Radiation.Therapy"
-    )) 
-    ASE_interaction <- glm(PDACcaco ~ ABO + HLA[i] + ABO*HLA[i] + covars , data = PDAC_data_final, family=binomial(logit))
-  summary(ASE_interaction)
-
-}
-
-# Ensure G12V is a factor with the correct levels
-PDAC_data_final$G12V <- factor(
-  PDAC_data_final$G12V,
-  levels = c("Other_mutation", "WT", "G12V")
-)
-# Initialize results data frame
-interaction_results_df <- data.frame()
-# Loop over each allele
-for (i in seq_along(alleles)) {
-  allele <- alleles[i]
-  allele_valid <- alleles_valid[i]
-  # Proceed only if allele variable has more than one level
-  if (length(unique(PDAC_data_final[[allele_valid]])) > 1) {
-    # Build the formula
-    formula <- as.formula(paste(
-      "Class1_LOSS ~", allele_valid, "* G12V + allele_valed+ G12V+ Subtype...Moffitt + TP53 + Lymphnode_stage_collapsed + Radiation.Therapy"
-    ))
-    # Fit the model
-    model <- glm(formula, data = PDAC_data_final, family = binomial)
-    # Extract coefficients
-    coef_summary <- summary(model)$coefficients
-    # Print coefficient names for debugging
-    print(paste("Coefficients for allele:", allele))
-    print(rownames(coef_summary))
-    # G12V levels (excluding reference level)
-    G12V_levels <- levels(PDAC_data_final$G12V)[-1]
-    # Loop over G12V levels
-    for (G12V_level in G12V_levels) {
-      # Construct the interaction term name
-      interaction_term <- paste0(allele_valid, "1:G12V", G12V_level)
-      if (interaction_term %in% rownames(coef_summary)) {
-        coef <- coef_summary[interaction_term, "Estimate"]
-        se <- coef_summary[interaction_term, "Std. Error"]
-        p_value <- coef_summary[interaction_term, "Pr(>|z|)"]
-        # Calculate Odds Ratio and Confidence Intervals
-        OR <- exp(coef)
-        Lower_CI <- exp(coef - 1.96 * se)
-        Upper_CI <- exp(coef + 1.96 * se)
-        # Store the results
-        interaction_results_df <- rbind(
-          interaction_results_df,
-          data.frame(
-            Allele = allele,
-            Allele_Level = "1",
-            G12V_Level = G12V_level,
-            Interaction_Term = interaction_term,
-            Coef = coef,
-            OR = OR,
-            Lower_CI = Lower_CI,
-            Upper_CI = Upper_CI,
-            p.value = p_value,
-            stringsAsFactors = FALSE
-          )
-        )
-      } else {
-        cat("Interaction term", interaction_term, "not found in the model for allele", allele, "\n")
-      }
-    }
-  } else {
-    cat("Allele", allele, "has only one level and will be skipped.\n")
-  }
-}
-###################
-
-#for (hla_name in colnames(hla_com_filtered[2:dim(hla_com_filtered)[2]])) {
- # print(hla_name)
-  #print(hla_com_filtered[,hla_name])
-  
-#}
