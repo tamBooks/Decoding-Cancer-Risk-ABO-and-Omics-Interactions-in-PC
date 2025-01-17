@@ -176,7 +176,6 @@ These scripts:
 6. **Run Principal Component Analysis**:  
    ```bash  
    ./pc_extraction.sh  
-   Rscript psa_cal.R
    ./ibd.sh
    Rscript psa_cal.R
    ```  
